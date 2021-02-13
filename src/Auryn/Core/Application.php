@@ -2,7 +2,7 @@
 
 namespace Auryn\Core;
 
-class Application
+class Application extends Container
 {
   public function __construct()
   {
