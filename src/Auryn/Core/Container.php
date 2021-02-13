@@ -29,6 +29,26 @@ abstract class Container
   }
 
   /**
+   * Calling method from spesific object or class
+   * 
+   * @param string|callable|object $abstract
+   * @param string $method
+   * @return mixed
+   */
+  public function call($abstract, string $method)
+  {
+    $abstract = is_callable($abstract) && !is_object($abstract) ? call_user_func($abstract, $this) : $abstract;
+    $concrete = $this->isBinded($abstract) || array_key_exists($abstract, self::$_resolved) 
+      ? $this->use($abstract) : $this->resolveConcrete($abstract);
+
+    try {
+      $method = new \ReflectionMethod($concrete::class, $method);
+      $dependencies = $this->resolveDependencies($method->getParameters());
+      return $method->invokeArgs($concrete, $dependencies);
+    } catch (\ReflectionException $err) { die($err->getMessage()); } 
+  }
+
+  /**
    * Registering instances as a singleton class
    * 
    * @param string $abstract
@@ -96,13 +116,15 @@ abstract class Container
   {
     if (is_callable($concrete) && !is_object($concrete)) $concrete = call_user_func($concrete, $this);
 
-    $class = new \ReflectionClass($concrete);
-    $constructor = $class->getConstructor();
+    try {
+      $class = new \ReflectionClass($concrete);
+      $constructor = $class->getConstructor();
 
-    if ($constructor instanceof \ReflectionMethod) $dependencies = $this->resolveDependencies($constructor->getParameters());
-    else $dependencies = [];
+      if ($constructor instanceof \ReflectionMethod) $dependencies = $this->resolveDependencies($constructor->getParameters());
+      else $dependencies = [];
 
-    return $class->newInstanceArgs($dependencies);
+      return $class->newInstanceArgs($dependencies);
+    } catch (\ReflectionException $err) { die($err->getMessage()); }
   }
 
   /**
