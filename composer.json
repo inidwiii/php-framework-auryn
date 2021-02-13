@@ -11,6 +11,9 @@
   "minimum-stability": "stable",
   "require": {},
   "autoload": {
+    "files": [
+      "src/Auryn/Core/Misc.php"
+    ],
     "psr-4": {
       "Auryn\\": "src/Auryn/"
     }
