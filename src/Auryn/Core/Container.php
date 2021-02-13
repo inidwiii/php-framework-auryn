@@ -42,7 +42,7 @@ abstract class Container
       ? $this->use($abstract) : $this->resolveConcrete($abstract);
 
     try {
-      $method = new \ReflectionMethod($concrete::class, $method);
+      $method = new \ReflectionMethod(get_class($concrete), $method);
       $dependencies = $this->resolveDependencies($method->getParameters());
       return $method->invokeArgs($concrete, $dependencies);
     } catch (\ReflectionException $err) { die($err->getMessage()); } 
