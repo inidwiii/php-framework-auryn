@@ -36,10 +36,12 @@ abstract class Container
    * Call a method from a object or registered instance
    * 
    * @param callable|object|string $concrete
+   * @param string $method
+   * @param array ...$dependencies
    * @return mixed
    * @throws \InvalidArgumentException
    */
-  public function call($concrete, $method)
+  public function call($concrete, $method, ...$dependencies)
   {
     try {
       if (is_callable($concrete) && !is_object($concrete) && !is_string($concrete)) $concrete = call_user_func($concrete, $this);
@@ -51,7 +53,7 @@ abstract class Container
       );
 
       $method = new \ReflectionMethod($concrete, $method);
-      $dependencies = $this->resolveDependencies($method->getParameters());
+      $dependencies = $this->resolveDependencies($method->getParameters(), $dependencies);
 
       return $method->invokeArgs($concrete, $dependencies);
     } catch (\ReflectionException $ex) { die($ex->getMessage()); } 
@@ -87,7 +89,13 @@ abstract class Container
     else return $this->resolveConcrete(self::$_instances[$abstract]);
   }
 
-  public function with(array $dependencies)
+  /**
+   * Inject parameters into the object instance constructor
+   * 
+   * @param array ...$dependencies
+   * @return void
+   */
+  public function with(...$dependencies)
   {
     $this->registerInjectedDependencies($dependencies);
   }

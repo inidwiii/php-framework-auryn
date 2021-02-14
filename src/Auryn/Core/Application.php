@@ -8,13 +8,20 @@ class Application extends Container
   {
     $this->preloadConstants();
     $this->preloadDependencies();
+
+    $this->call('env', 'init');
   }
 
+  /**
+   * Preloading registered dependency instances
+   * 
+   * @return void
+   */
   private function preloadDependencies()
   {
     foreach (require realpath(PATH_APP . 'bootstrap.php') as $key => $value) {
-      if ($key === 'singletons') foreach ($value as $abstract => $concrete) parent::singleton($abstract, $concrete);
-      else parent::bind($value, $value);
+      if ($key === 'singletons') foreach ($value as $abstract => $concrete) $this->singleton($abstract, $concrete);
+      else $this->bind($value, $value);
     }
   }
 

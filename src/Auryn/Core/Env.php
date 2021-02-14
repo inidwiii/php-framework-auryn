@@ -18,9 +18,22 @@ class Env
     $this->filePath = $filePath;
   }
 
-  public function compile()
+  /**
+   * Compile the environment variable from the environment file
+   * 
+   * @return void
+   */
+  public function init($callback = null)
   {
     $this->resolveFile();
+    $this->resolveEnv();
+
+    foreach ((array) $this->bag as $key => $value) {
+      $_ENV[$key] = $value;
+      $_SERVER[$key] = $value;
+    }
+
+    !is_null($callback) && call_user_func($callback, $this);
   }
 
   /**
@@ -45,6 +58,27 @@ class Env
   public function setFileName(string $fileName)
   {
     $this->fileName = $fileName;
+  }
+
+  /**
+   * Parsing environment variable from the environment file
+   * 
+   * @return void
+   * @throws \UnexpectedValueException
+   */
+  private function resolveEnv()
+  {
+    if (is_null($this->fileHandler)) throw new \UnexpectedValueException("Env file handler can't be null.");
+
+    while ($line = fgets($this->fileHandler)) {
+      if (strpos($line, '=') === false) continue;
+      $line = explode('=', trim($line));
+
+      $key = $line[0];
+      $value = trim($line[1], '"\'`');
+
+      $this->bag[$key] = $value;
+    }
   }
 
   /**
