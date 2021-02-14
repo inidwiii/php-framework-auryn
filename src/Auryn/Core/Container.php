@@ -4,158 +4,188 @@ namespace Auryn\Core;
 
 abstract class Container 
 {
+  private $current;
+
   /**
-   * Storing registered instances
+   * Hold the registered instances
    * @var array
    */
   protected static $_instances = [];
 
   /**
-   * Storing resolved singleton instances
+   * Hold the registered singleton instances
    * @var array
    */
   protected static $_resolved = [];
 
   /**
-   * Registering instances
+   * Register a new instance 
    * 
-   * @param string $abstract
-   * @param string|callable|object $concrete
+   * @param string|int $abstract
+   * @param callable|object|string $concrete
+   * @return self
    */
-  public function bind(string $abstract, $concrete)
+  public function bind($abstract, $concrete)
   {
-    if ($this->isBinded($abstract)) return;
-    $this->pushToInstances($abstract, $concrete);
+    if ($this->isRegistered($abstract)) throw new \InvalidArgumentException("'{$abstract}' is already registered.");
+    $this->registerInstances($abstract, $concrete);
+    return $this;
   }
 
   /**
-   * Calling method from spesific object or class
+   * Call a method from a object or registered instance
    * 
-   * @param string|callable|object $abstract
-   * @param string $method
+   * @param callable|object|string $concrete
    * @return mixed
+   * @throws \InvalidArgumentException
    */
-  public function call($abstract, string $method)
+  public function call($concrete, $method)
   {
-    $abstract = is_callable($abstract) && !is_object($abstract) ? call_user_func($abstract, $this) : $abstract;
-    $concrete = $this->isBinded($abstract) || array_key_exists($abstract, self::$_resolved) 
-      ? $this->use($abstract) : $this->resolveConcrete($abstract);
-
     try {
-      $method = new \ReflectionMethod(get_class($concrete), $method);
+      if (is_callable($concrete) && !is_object($concrete) && !is_string($concrete)) $concrete = call_user_func($concrete, $this);
+      if (is_string($concrete) && $this->isRegistered($concrete)) $concrete = $this->use($concrete);
+      if (is_string($concrete) && (class_exists($concrete, false) !== false)) $concrete = new $concrete;
+      if (is_object($concrete)) $concrete = $concrete;
+      else throw new \InvalidArgumentException(
+        'Invalid typeof $concrete. Expected to be string, object or function, given ' . gettype($concrete)
+      );
+
+      $method = new \ReflectionMethod($concrete, $method);
       $dependencies = $this->resolveDependencies($method->getParameters());
+
       return $method->invokeArgs($concrete, $dependencies);
-    } catch (\ReflectionException $err) { die($err->getMessage()); } 
+    } catch (\ReflectionException $ex) { die($ex->getMessage()); } 
+      catch (\Exception $ex) { die($ex->getMessage()); }
   }
 
   /**
-   * Registering instances as a singleton class
+   * Register a new instance and save it on first call 
    * 
-   * @param string $abstract
-   * @param string|callable|object $concrete
+   * @param string|int $abstract
+   * @param callable|object|string $concrete
+   * @return self
+   * @throws \InvalidArgumentException
    */
-  public function singleton(string $abstract, $concrete)
+  public function singleton($abstract, $concrete)
   {
-    if ($this->isBinded($abstract)) return;
-    $this->pushToInstances($abstract, $concrete, true);
+    if ($this->isRegistered($abstract)) throw new \InvalidArgumentException("'{$abstract}' is already registered.");
+    $this->registerInstances($abstract, $concrete, true);
+    return $this;
   }
 
   /**
-   * Calling the registered instance
+   * Get the registered instance in the container
    * 
    * @param string $abstract
+   * @return object
    */
-  public function use(string $abstract)
+  public function use($abstract)
   {
-    if (!$this->isBinded($abstract)) throw new \InvalidArgumentException("Abstract '{$abstract}' is not registered or binded.");
+    $this->current = null;
+    if (!$this->isRegistered($abstract)) throw new \InvalidArgumentException("'{$abstract}' is not registered.");
     if (self::$_instances[$abstract]['singleton']) return $this->resolveSingleton($abstract);
-    else return $this->resolveConcrete(self::$_instances[$abstract]['concrete']);
+    else return $this->resolveConcrete(self::$_instances[$abstract]);
+  }
+
+  public function with(array $dependencies)
+  {
+    $this->registerInjectedDependencies($dependencies);
   }
 
   /**
-   * Check if the abstract is registered or not
+   * Check if an instance is already registered or not
    * 
    * @param string $abstract
    * @return bool
    */
-  private function isBinded(string $abstract): bool
+  private function isRegistered($abstract): bool
   {
     return (bool) array_key_exists($abstract, self::$_instances);
   }
 
   /**
-   * Check if the abstract is resolved or not
+   * Check if an instance is already resolved or not
    * 
    * @param string $abstract
    * @return bool
    */
-  private function isResolved(string $abstract): bool
+  private function isResolved($abstract): bool
   {
     return (bool) array_key_exists($abstract, self::$_resolved);
   }
 
+  private function registerInjectedDependencies(array $dependencies)
+  {
+    self::$_instances[$this->current]['dependencies'] = $dependencies;
+  }
+
   /**
-   * Registering new data to instances variable
+   * Register a new instances to the container
    * 
    * @param string $abstract
-   * @param string|callable|object $concrete
-   * @param bool $singleton
+   * @param callable|object|string
+   * @return void
    */
-  private function pushToInstances(string $abstract, $concrete, $singleton = false)
+  private function registerInstances($abstract, $concrete, $singleton = false)
   {
     self::$_instances[$abstract] = compact('concrete', 'singleton');
+    $this->current = $abstract;
   }
 
   /**
-   * Resolving concrete as a new instance every time called
+   * Resolving concrete instance as an object 
    * 
-   * @param string|object $concrete
+   * @param array $data
    * @return object
+   * @throws \ReflectionException
    */
-  private function resolveConcrete($concrete): object
+  private function resolveConcrete($data)
   {
-    if (is_callable($concrete) && !is_object($concrete)) $concrete = call_user_func($concrete, $this);
+    extract($data);
 
     try {
+      if (is_callable($concrete) && !is_object($concrete)) $concrete = call_user_func($concrete, $this);
+
       $class = new \ReflectionClass($concrete);
       $constructor = $class->getConstructor();
-
-      if ($constructor instanceof \ReflectionMethod) $dependencies = $this->resolveDependencies($constructor->getParameters());
-      else $dependencies = [];
+      $dependencies = $constructor instanceof \ReflectionMethod 
+        ? $this->resolveDependencies($constructor->getParameters(), $dependencies ?? []) 
+        : $dependencies ?? [];
 
       return $class->newInstanceArgs($dependencies);
-    } catch (\ReflectionException $err) { die($err->getMessage()); }
+    } catch (\ReflectionException $ex) { die($ex->getMessage()); }
   }
 
   /**
-   * Resolving the registered dependencies on the instance constructor
+   * Resolving the dependencies that are required by the concrete
    * 
    * @param array $dependencies
    * @return array
    */
-  private function resolveDependencies(array $dependencies = []): array
+  private function resolveDependencies(array $dependencies, array $injectedDependencies = [])
   {
     $resolvedDependencies = [];
 
-    foreach ($dependencies as $dependency) {
-      if ($dependency->getType() instanceof \ReflectionNamedType)
+    foreach ((array) $dependencies as $dependency) {
+      if ($dependency->getType() instanceof \ReflectionNamedType) 
         $resolvedDependencies[] = $this->resolveConcrete($dependency->getType()->getName());
-      else $resolvedDependencies[] = $dependency;
+      else if (!empty($injectedDependencies)) $resolvedDependencies[] = array_shift($injectedDependencies);
+      else $resolvedDependencies[] = $dependency->getDefaultValue();
     }
 
     return $resolvedDependencies;
   }
 
   /**
-   * Resolving the registered instance but not create new instance every time called
+   * Resolving singleton registered concrete instance as an object 
    * 
    * @param string $abstract
    * @return object
    */
-  private function resolveSingleton($abstract): object
+  private function resolveSingleton($abstract)
   {
     if ($this->isResolved($abstract)) return self::$_resolved[$abstract];
-    self::$_resolved[$abstract] = $this->resolveConcrete(self::$_instances[$abstract]['concrete']);
+    self::$_resolved[$abstract] = $this->resolveConcrete(self::$_instances[$abstract]);
     return self::$_resolved[$abstract];
   }
 }
