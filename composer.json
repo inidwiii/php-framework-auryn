@@ -12,7 +12,7 @@
   "require": {},
   "autoload": {
     "files": [
-      "src/Auryn/Core/Misc.php"
+      "src/Auryn/Core/helpers.php"
     ],
     "psr-4": {
       "Auryn\\": "src/Auryn/"
