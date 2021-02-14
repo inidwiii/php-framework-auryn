@@ -10,7 +10,7 @@ return [
   /**
    * Hold the pre-registered instance as a singleton instance
    */
-  // 'singletons' => [
-  //   'env' => Env::class
-  // ]
+  'singletons' => [
+    'env' => Env::class
+  ]
 ];
