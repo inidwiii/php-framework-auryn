@@ -4,12 +4,28 @@ namespace Auryn\Core;
 
 class Env
 {
+  /**
+   * Hold the environment data variable
+   * @var array
+   */
   private $bag = [];
 
+  /**
+   * Hold the environment file handler
+   * @var resource
+   */
   private $fileHandler;
 
+  /**
+   * Hold the environment file name 
+   * @var string
+   */
   private $fileName;
 
+  /**
+   * Hold the environment file directory path
+   * @var string
+   */
   private $filePath;
 
   public function __construct($filePath = ROOT, $fileName = '.env')
