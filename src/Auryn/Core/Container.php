@@ -2,7 +2,7 @@
 
 namespace Auryn\Core;
 
-abstract class Container 
+class Container 
 {
   /**
    * Store the current active pre-registered abstract 
@@ -56,7 +56,7 @@ abstract class Container
     try {
       if (is_callable($concrete) && !is_object($concrete) && !is_string($concrete)) $concrete = call_user_func($concrete, $this);
       if (is_string($concrete) && $this->isRegistered($concrete)) $concrete = $this->use($concrete);
-      if (is_string($concrete) && (class_exists($concrete, false) !== false)) $concrete = new $concrete;
+      if (is_string($concrete)) $concrete = $this->resolveConcrete(compact('concrete'));
       if (is_object($concrete)) $concrete = $concrete;
       else throw new \InvalidArgumentException(
         'Invalid typeof $concrete. Expected to be string, object or function, given ' . gettype($concrete)
@@ -208,7 +208,7 @@ abstract class Container
 
     foreach ((array) $dependencies as $dependency) {
       if ($dependency->getType() instanceof \ReflectionNamedType) 
-        $resolvedDependencies[] = $this->resolveConcrete($dependency->getType()->getName());
+        $resolvedDependencies[] = $this->resolveConcrete(['concrete' => $dependency->getType()->getName()]);
       else if (!empty($injectedDependencies)) $resolvedDependencies[] = array_shift($injectedDependencies);
       else $resolvedDependencies[] = $dependency->getDefaultValue();
     }

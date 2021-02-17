@@ -15,6 +15,7 @@
       "src/Auryn/Core/helpers.php"
     ],
     "psr-4": {
+      "App\\": "app/",
       "Auryn\\": "src/Auryn/"
     }
   }
