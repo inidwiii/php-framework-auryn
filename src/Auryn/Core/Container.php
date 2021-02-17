@@ -4,7 +4,17 @@ namespace Auryn\Core;
 
 abstract class Container 
 {
+  /**
+   * Store the current active pre-registered abstract 
+   * @var string
+   */
   private $current;
+
+  /**
+   * Store the instance of the class object
+   * @var object
+   */
+  protected static $_instance;
 
   /**
    * Hold the registered instances
@@ -25,7 +35,7 @@ abstract class Container
    * @param callable|object|string $concrete
    * @return self
    */
-  public function bind($abstract, $concrete)
+  public function bind($abstract, $concrete = null)
   {
     if ($this->isRegistered($abstract)) throw new \InvalidArgumentException("'{$abstract}' is already registered.");
     $this->registerInstances($abstract, $concrete);
@@ -68,7 +78,7 @@ abstract class Container
    * @return self
    * @throws \InvalidArgumentException
    */
-  public function singleton($abstract, $concrete)
+  public function singleton($abstract, $concrete = null)
   {
     if ($this->isRegistered($abstract)) throw new \InvalidArgumentException("'{$abstract}' is already registered.");
     $this->registerInstances($abstract, $concrete, true);
@@ -101,6 +111,21 @@ abstract class Container
   }
 
   /**
+   * Get the instance of application class through the Container
+   * 
+   * @param mixed ...$args
+   * @return \Auryn\Core\Application
+   */
+  public static function instance()
+  {
+    if (is_null(self::$_instance)) {
+      self::$_instance = new static(...func_get_args());
+    }
+
+    return self::$_instance;
+  }
+
+  /**
    * Check if an instance is already registered or not
    * 
    * @param string $abstract
@@ -122,6 +147,12 @@ abstract class Container
     return (bool) array_key_exists($abstract, self::$_resolved);
   }
 
+  /**
+   * Registering dependencies to currenct pre-registered instance
+   * 
+   * @param array $dependencies
+   * @return void
+   */
   private function registerInjectedDependencies(array $dependencies)
   {
     self::$_instances[$this->current]['dependencies'] = $dependencies;
@@ -136,6 +167,7 @@ abstract class Container
    */
   private function registerInstances($abstract, $concrete, $singleton = false)
   {
+    $concrete = is_null($concrete) ? $abstract : $concrete;
     self::$_instances[$abstract] = compact('concrete', 'singleton');
     $this->current = $abstract;
   }
