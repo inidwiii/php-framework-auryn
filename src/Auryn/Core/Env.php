@@ -35,6 +35,19 @@ class Env
   }
 
   /**
+   * Get environment data stored
+   * 
+   * @param string $key
+   * @param mixed $default
+   * @return mixed
+   */
+  public function get(string $key, $default = null)
+  {
+    if (!$this->isKeyExists($key)) return value($default);
+    return $this->bag[$key];
+  }
+
+  /**
    * Compile the environment variable from the environment file
    * 
    * @return void
@@ -43,13 +56,24 @@ class Env
   {
     $this->resolveFile();
     $this->resolveEnv();
-
-    foreach ((array) $this->bag as $key => $value) {
-      $_ENV[$key] = $value;
-      $_SERVER[$key] = $value;
-    }
+    $this->share();
 
     !is_null($callback) && call_user_func($callback, $this);
+  }
+
+  /**
+   * Set new environment data to store to the bag
+   * 
+   * @param string $key
+   * @param mixed $value
+   * @return array
+   */
+  public function set(string $key, $value = null)
+  {
+    if ($this->isKeyExists($key)) throw new \InvalidArgumentException("'{$key}' is already present in \$_ENV");
+    $this->bag[$key] = value($value);
+    $this->share(); // re-share the newest env data
+    return $this->bag;
   }
 
   /**
@@ -74,6 +98,16 @@ class Env
   public function setFileName(string $fileName)
   {
     $this->fileName = $fileName;
+  }
+
+  /**
+   * Check the key is present in the bag or not
+   * 
+   * @return bool
+   */
+  private function isKeyExists($key):bool
+  {
+    return (bool) array_key_exists($key, $this->bag);
   }
 
   /**
@@ -112,5 +146,18 @@ class Env
     );
 
     $this->fileHandler = fopen($this->filePath . $this->fileName, 'r');
+  }  
+
+  /**
+   * Share the environment data on the bag to $_ENV and $_SERVER
+   * 
+   * @return void
+   */
+  private function share()
+  {
+    foreach ((array) $this->bag as $key => $value) {
+      $_ENV[$key] = $value;
+      $_SERVER[$key] = $value;
+    }
   }
 }

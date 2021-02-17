@@ -11,9 +11,9 @@ if (!function_exists('app')) {
    */
   function app($abstract = null)
   {
-    $app = new Application(); 
+    $app = Application::instance();
     if (is_null($abstract)) return $app;
-    return $app;
+    return $app->use($abstract);
   }
 }
 
@@ -66,6 +66,21 @@ if (!function_exists('arraySet')) {
 
     $array[array_shift($keys)] = $value;
     return $array;
+  }
+}
+
+if (!function_exists('env')) {
+  /**
+   * Get Env instance or get environment data
+   * 
+   * @param string $key
+   * @param mixed $default
+   * @return mixed
+   */
+  function env($key = null, $default = null)
+  {
+    if (is_null($key) && is_null($default)) return app('env');
+    return app('env')->get($key, $default);
   }
 }
 
